@@ -19,12 +19,9 @@ CONCERNS_EXIST_FOR = "concerns exist for?"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SHOW_DATA_PROMPT = "Give me this answer in tags which are short, crisp, easy to read quickly."
 
-session = requests.Session()
-session.cookies.clear()
-
 def search_amazon_product_ASIN(product_name):
     url = f'{SCRAPINGBEE_API}?url=https://www.amazon.in/s?k={product_name.replace(" ", "+")}&ai_query={PRODUCT_ASIN_AI_QUERY.replace(" ", "+")}&api_key={SCRAPINGBEE_API_KEY}&block_ads={BLOCK_ADS}'
-    response = session.get(url, verify=False)
+    response = requests.get(url, verify=False)
     if response.status_code == 200:
         print("asin_url", url)
         return response.text
@@ -32,7 +29,7 @@ def search_amazon_product_ASIN(product_name):
 
 def search_amazon_product_details(ASIN):
     url = f'{SCRAPINGBEE_API}?url=https://www.amazon.in/dp/{ASIN}&ai_query={PRODUCT_DETAILS_AI_QUERY.replace(" ", "+")}&api_key={SCRAPINGBEE_API_KEY}&block_ads={BLOCK_ADS}'
-    response = session.get(url, verify=False)
+    response = requests.get(url, verify=False)
     if response.status_code == 200:
         print("product_url", url)
         return response.text
@@ -59,7 +56,7 @@ def call_gpt_api(product_name, product_details, prompt):
             "Content-Type": "application/json"
         }
         print("headers", headers)
-        response = session.post(url, headers=headers, json=data, verify=False)
+        response = requests.post(url, headers=headers, json=data, verify=False)
 
         print("final_response", response.text)
 
