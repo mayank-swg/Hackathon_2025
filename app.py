@@ -14,6 +14,7 @@ SCRAPINGBEE_API_KEY = os.getenv("SCRAPINGBEE_API_KEY")
 BLOCK_ADS = True
 PRODUCT_ASIN_AI_QUERY = "ASIN of first result"
 PRODUCT_DETAILS_AI_QUERY = "Product information, Important information, Product description, About this item, Reviews"
+PRODUCT_REVIEWS_AI_QUERY = "Reviews"
 PEOPLE_ENJOY_THIS_FOR = "people enjoy this for?"
 CONCERNS_EXIST_FOR = "concerns exist for?"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -29,6 +30,14 @@ def search_amazon_product_ASIN(product_name):
 
 def search_amazon_product_details(ASIN):
     url = f'{SCRAPINGBEE_API}?url=https://www.amazon.in/dp/{ASIN}&ai_query={PRODUCT_DETAILS_AI_QUERY.replace(" ", "+")}&api_key={SCRAPINGBEE_API_KEY}&block_ads={BLOCK_ADS}'
+    response = requests.get(url, verify=False)
+    if response.status_code == 200:
+        print("product_url", url)
+        return response.text
+    return None
+
+def search_amazon_product_reviews(ASIN):
+    url = f'{SCRAPINGBEE_API}?url=https://www.amazon.in/dp/{ASIN}&ai_query={PRODUCT_REVIEWS_AI_QUERY.replace(" ", "+")}&api_key={SCRAPINGBEE_API_KEY}&block_ads={BLOCK_ADS}'
     response = requests.get(url, verify=False)
     if response.status_code == 200:
         print("product_url", url)
@@ -112,13 +121,37 @@ def product_details():
     
     print("product_ASIN", product_ASIN)
 
-    # Step 2: Get reviews for the product
+    # Step 2: Get Details for the product
     product_details = search_amazon_product_details(product_ASIN)
     if not product_details:
         logging.error("error: No product details found")
     
     print("amazon_product_details", product_details)
     return product_details
+
+# API endpoint
+@app.route("/product-reviews", methods=["POST"])
+def product_reviews():
+    data = request.json
+    product_name = data.get("product_name")
+
+    if not product_name:
+        return jsonify({"error": "product_name is required"}), 400
+
+    # Step 1: Search for the product on Amazon
+    product_ASIN = search_amazon_product_ASIN(product_name)
+    if not product_ASIN:
+        logging.error("error: product not found")
+    
+    print("product_ASIN", product_ASIN)
+
+    # Step 2: Get reviews for the product
+    product_reviews = search_amazon_product_reviews(product_ASIN)
+    if not product_reviews:
+        logging.error("error: No product reviews found")
+    
+    print("amazon_product_reviews", product_reviews)
+    return product_reviews
 
 # API endpoint
 @app.route("/pdp-data", methods=["POST"])
