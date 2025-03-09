@@ -52,7 +52,7 @@ def search_amazon_product_details(ASIN, details_prompt):
     response = requests.get(url, verify=False)
     if response.status_code == 200:
         print("product_url", url)
-        return response.text
+        return response.json()
     return None
 
 # Call GPT to get the response for the given prompt
