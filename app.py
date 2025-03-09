@@ -363,29 +363,23 @@ def translate():
 
 # Endpoint to convert text to speech
 @app.route('/text-to-speech', methods=['POST'])
-def convert_text_to_speech():
-    try:
-        # Get the JSON data from the POST request
-        data = request.get_json()
-        text = data.get('text')
-        language = data.get('target_language', 'en')  # Default to 'en' if not provided
-        
-        if not text:
-            return jsonify({"error": "Text is required"}), 400
-        
-        # Convert the text to speech using gTTS
-        tts = gTTS(text=text, lang=language, slow=False)
-        
-        # Save the audio to a BytesIO object to avoid writing to disk
-        audio = BytesIO()
-        tts.save(audio)
-        audio.seek(0)  # Reset pointer to the start of the audio file
-        
-        # Return the audio as a response
-        return send_file(audio, mimetype="audio/mp3", as_attachment=True, download_name="output.mp3")
-    
-    except Exception as e:
-        return jsonify({"Text-to-speech error": str(e)}), 500
+def text_to_speech():
+    # Get JSON data from the request
+    data = request.json
+    text = data.get('text')
+    lang = data.get('target_language', 'en')  # Default to English if language is not provided
+
+    if not text:
+        return jsonify({"error": "Text is required"}), 400
+
+    # Convert text to speech
+    tts = gTTS(text=text, lang=lang, slow=False)
+    audio_file = BytesIO()
+    tts.write_to_fp(audio_file)
+    audio_file.seek(0)
+
+    # Return the audio file
+    return send_file(audio_file, mimetype='audio/mpeg')
 
 # API endpoint
 @app.route("/videos", methods=["POST"])
