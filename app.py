@@ -49,6 +49,9 @@ def scrap_amazon_product(asin):
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
 
+    # Set the binary location for Chromium (use the path you provided)
+    options.binary_location = "/opt/homebrew/bin/chromium"
+
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
 
