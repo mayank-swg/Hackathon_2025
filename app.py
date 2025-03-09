@@ -27,123 +27,160 @@ ROLE_AND_GUIDELINES_PROMPT = "Role:\r\n\r\nYou are an expert data analyst specia
 MAX_YOUTUBE_VIDEOS = 3
 YOUTUBE_SEARCH_PROMPT = "best review videos of"
 
-
-import time
 import pandas as pd
-import chromedriver_autoinstaller
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
+from lxml import html
+import re, time
+from datetime import datetime
+
 
 def scrap_amazon_product(asin):
-    # Install the correct ChromeDriver version
-    chromedriver_autoinstaller.install()
 
-    # Setup Selenium WebDriver
-    options = Options()
-    options.add_argument("--headless")  # Run in headless mode
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+    #Create session
+    session = requests.Session()
 
-    # Set the binary location for Chromium (use the path you provided)
-    options.binary_location = "/opt/homebrew/bin/chromium"
+    #Define headers
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'DNT': '1',  # Do Not Track request header
+        'Upgrade-Insecure-Requests': '1',
+        'Referer': 'https://amazon.in/',
+    }
 
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
+    #Set auth cookies
+    session.cookies.set('session-id', os.getenv("SESSION_ID"), domain='.amazon.in')
+    session.cookies.set('ubid-main', os.getenv("UBID_MAIN"), domain='.amazon.in')
+    session.cookies.set('session-token', os.getenv("SESSION_TOKEN"), domain='.amazon.in')
 
-    # Amazon product URL (replace with actual product URL)
-    product_url = f"https://www.amazon.in/dp/{asin}"
-    print("product_url", product_url)
-    driver.get(product_url)
-    time.sleep(3)  # Wait for the page to load
 
-    # Extract page source and parse with BeautifulSoup
-    soup = BeautifulSoup(driver.page_source, "html.parser")
+    comments_data = [] #Comments data for result dataframe
+    print(f'/// ASIN {asin}')
 
-    # Extract product details
-    title = soup.find("span", id="productTitle")
-    title = title.get_text(strip=True) if title else "N/A"
+    #Load asin page
+    url = f'https://www.amazon.in/dp/{asin}'
+    print(f'Load {url}...')
+    response = session.get(url, headers=headers, verify=False)
+    headers['Referer'] = url #save url as referrer for next query
+    print(response)
+    time.sleep(2)
 
-    price = soup.find("span", class_="a-price-whole")
-    price = price.get_text(strip=True) if price else "N/A"
+    #Load comments page with paging
+    page = 1
 
-    rating = soup.find("span", class_="a-icon-alt")
-    rating = rating.get_text(strip=True) if rating else "N/A"
+    while True:
 
-    availability = soup.find("div", id="availability")
-    availability = availability.get_text(strip=True) if availability else "N/A"
+        url = f'https://www.amazon.in/product-reviews/{asin}/ref=cm_cr_arp_d_viewopt_srt?ie=UTF8&reviewerType=all_reviews&sortBy=recent&pageNumber={page}'
+        print(f'Page {page} | Load {url}...')
+        response = session.get(url, headers=headers, verify=False)
+        headers['Referer'] = url  # save url as referrer for next query
+        print(response)
+        time.sleep(2)
 
-    # Extract product description
-    desc_section = soup.find("div", id="feature-bullets")
-    description = [bullet.get_text(strip=True) for bullet in desc_section.find_all("span", class_="a-list-item")] if desc_section else ["N/A"]
+        #Get page tree and get reviews
+        tree = html.fromstring(response.content)
+        reviews = tree.xpath('//div[@data-hook="review"]')
 
-    # Click on "See all reviews" link
-    try:
-        see_all_reviews_link = driver.find_element(By.PARTIAL_LINK_TEXT, "See all reviews")
-        see_all_reviews_link.click()
-        time.sleep(3)  # Allow reviews page to load
-    except Exception as e:
-        print("No 'See all reviews' link found. Scraping reviews from the main page.")
+        print(f'Reviews found on the page: {len(reviews)}')
+        if(len(reviews)==0):
+            print(response.content)
 
-    reviews = []
-    max_pages = 5  # Set the number of pages to scrape
-    current_page = 1
+        # Iterating reviews
+        for review in reviews:
 
-    print("title", title)
-    print("price", price)
-    print("rating", rating)
-    print("availability", availability)
-    print("description", description)
-    while current_page <= max_pages:
-        print(f"Scraping page {current_page}...")
+            #Get review id
+            review_id = review.xpath('./@id')
+            review_id = review_id[0] if review_id else None
 
-        # Scroll down to load reviews
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(3)  # Wait for reviews to load
+            # Get Author name
+            name = review.xpath('.//span[@class="a-profile-name"]/text()')
+            name = name[0] if name else None
 
-        # Extract reviews
-        review_elements = driver.find_elements(By.CSS_SELECTOR, "span[data-hook='review-body']")
-        image_elements = driver.find_elements(By.CSS_SELECTOR, "div.review-image-tile-section img")
+            # Get Title
+            title = review.xpath('.//a[@data-hook="review-title"]/span/text()')
+            title = title[0] if title else None
 
-        for i in range(len(review_elements)):
-            review_text = review_elements[i].text.strip()
-            review_image = image_elements[i].get_attribute("src") if i < len(image_elements) else "No Image"
+            # Try get Title by alternative way
+            if not title:
+                title = review.xpath('.//span[@data-hook="review-title"]/span[@class="cr-original-review-content"]/text()')
+                title = title[0] if title else None
 
-            reviews.append({
-                "Review": review_text,
-                "Review Image": review_image
-            })
+            # Get Rating
+            rating_str = review.xpath('.//i[@data-hook="review-star-rating"]/span/text()')
+            rating_str = rating_str[0] if rating_str else None
 
-        # Try to find and click the "Next page" link
-        try:
-            next_page_link = driver.find_element(By.PARTIAL_LINK_TEXT, "Next")
-            next_page_link.click()
-            time.sleep(3)  # Allow next page to load
-            current_page += 1
-        except Exception as e:
-            print("No more review pages found.")
+            # Try Rating by alternative way
+            if not rating_str:
+                rating_str = review.xpath('.//i[@data-hook="cmps-review-star-rating"]/span[@class="a-icon-alt"]/text()')
+                rating_str = rating_str[0] if rating_str else None
+
+            # Get Author name
+            date_str = review.xpath('.//span[@data-hook="review-date"]/text()')
+            date_str = date_str[0] if date_str else None
+
+            # Get Review Text
+            review_text = review.xpath('.//span[@data-hook="review-body"]//span/text()')
+            review_text = review_text[0] if review_text else None
+
+            # Get Country and comment date from
+            country = None
+            date = None
+
+            if date_str:
+                match = re.search(r'Reviewed in ([A-Za-z\s]+) on ([A-Za-z]+\s\d{1,2},\s\d{4})', date_str)
+                if match:
+
+                    # Get country
+                    country = match.group(1).strip()
+
+                    # Get date and convert to datetime
+                    date_strip = match.group(2).strip()
+                    date = datetime.strptime(date_strip, '%B %d, %Y')
+
+
+            # Get rating value from rating str
+            rating = None
+
+            if rating_str:
+                match = re.search(r'(\d+(\.\d+)?)', rating_str)
+                if match:
+                    rating = float(match.group(1))
+
+            #Print data
+            print(f"Id: {review_id}")
+            print(f"Name: {name}")
+            print(f"Title: {title}")
+            print(f"Rating: {rating}")
+            print(f"Country: {country}")
+            print(f"Date: {date}")
+            print(f"Text: {review_text}")
+            print("-" * 40)
+
+            comments_data.append(dict(
+                asin = asin,
+                review_id = review_id,
+                name = name,
+                title = title,
+                rating = rating,
+                country = country,
+                date = date,
+                review_text = review_text
+            ))
+
+        next_page = tree.xpath("//ul[@class='a-pagination']/li[@class='a-last']/a[@href]")
+        print('next_page=', next_page)
+        if next_page:
+            print('Next page found - go to the next page!')
+            page += 1
+        else:
+            print('Next page not found! - Exit from the loop!')
             break
-    
-    print("reviews", reviews)
-    # Close the browser
-    driver.quit()
 
-    # Store data in a DataFrame
-    df = pd.DataFrame([{
-        "Title": title,
-        "Price": price,
-        "Rating": rating,
-        "Availability": availability,
-        "Description": description,
-        "Reviews": reviews
-    }])
-
-    # Print DataFrame
-    print(df)
+    #Create result dataframe
+    frame = pd.DataFrame(comments_data)
+    print(frame)
 
 # Get ASIN of the 1st Amazon Product
 def search_amazon_product_ASIN(product_name):
