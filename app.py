@@ -372,8 +372,11 @@ def text_to_speech():
     if not text:
         return jsonify({"error": "Text is required"}), 400
 
+     # Translate the text
+    translated_text = translate_text(text, lang)
+
     # Convert text to speech
-    tts = gTTS(text=text, lang=lang, slow=False)
+    tts = gTTS(text=translated_text, lang=lang, slow=False)
     audio_file = BytesIO()
     tts.write_to_fp(audio_file)
     audio_file.seek(0)
