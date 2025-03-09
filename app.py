@@ -2,19 +2,20 @@ import requests
 import logging
 import os
 
-import time
-import chromedriver_autoinstaller
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
+# import time
+# import chromedriver_autoinstaller
+# from bs4 import BeautifulSoup
+# from selenium import webdriver
+# from selenium.webdriver.chrome.service import Service
+# from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.common.by import By
+# from webdriver_manager.chrome import ChromeDriverManager
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, send_file, jsonify
 from pytube import Search
 from deep_translator import GoogleTranslator
 from gtts import gTTS
+from io import BytesIO
 from dotenv import load_dotenv
 
 load_dotenv()  # Load environment variables from .env file
@@ -110,110 +111,110 @@ def translate_text(text, target_language="en"):
         return None
 
 # Get the Audio of given text in given language
-def text_to_speech(text, language="en", output_file="output.mp3"):
-    try:
-        tts = gTTS(text=text, lang=language)
-        tts.save(output_file)
-        return output_file
-    except Exception as e:
-        print(f"Text-to-speech error: {e}")
-        return None
+# def text_to_speech(text, language="en", output_file="output.mp3"):
+#     try:
+#         tts = gTTS(text=text, lang=language)
+#         tts.save(output_file)
+#         return output_file
+#     except Exception as e:
+#         print(f"Text-to-speech error: {e}")
+#         return None
 
  # Scrap the product details using selenium   
-def scrape_amazon_product(asin):
-    # Install the correct ChromeDriver version
-    chromedriver_autoinstaller.install()
+# def scrape_amazon_product(asin):
+#     # Install the correct ChromeDriver version
+#     chromedriver_autoinstaller.install()
 
-    # Setup Selenium WebDriver
-    options = Options()
-    options.add_argument("--headless")  # Run in headless mode
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+#     # Setup Selenium WebDriver
+#     options = Options()
+#     options.add_argument("--headless")  # Run in headless mode
+#     options.add_argument("--disable-gpu")
+#     options.add_argument("--no-sandbox")
+#     options.add_argument("--disable-dev-shm-usage")
 
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
+#     service = Service(ChromeDriverManager().install())
+#     driver = webdriver.Chrome(service=service, options=options)
 
-    product_url = f"https://www.amazon.in/dp/{asin}"
+#     product_url = f"https://www.amazon.in/dp/{asin}"
 
-    # Open the product URL
-    driver.get(product_url)
-    time.sleep(3)  # Wait for the page to load
+#     # Open the product URL
+#     driver.get(product_url)
+#     time.sleep(3)  # Wait for the page to load
 
-    # Extract page source and parse with BeautifulSoup
-    soup = BeautifulSoup(driver.page_source, "html.parser")
+#     # Extract page source and parse with BeautifulSoup
+#     soup = BeautifulSoup(driver.page_source, "html.parser")
 
-    # Extract product details
-    title = soup.find("span", id="productTitle")
-    title = title.get_text(strip=True) if title else "N/A"
+#     # Extract product details
+#     title = soup.find("span", id="productTitle")
+#     title = title.get_text(strip=True) if title else "N/A"
 
-    price = soup.find("span", class_="a-price-whole")
-    price = price.get_text(strip=True) if price else "N/A"
+#     price = soup.find("span", class_="a-price-whole")
+#     price = price.get_text(strip=True) if price else "N/A"
 
-    rating = soup.find("span", class_="a-icon-alt")
-    rating = rating.get_text(strip=True) if rating else "N/A"
+#     rating = soup.find("span", class_="a-icon-alt")
+#     rating = rating.get_text(strip=True) if rating else "N/A"
 
-    availability = soup.find("div", id="availability")
-    availability = availability.get_text(strip=True) if availability else "N/A"
+#     availability = soup.find("div", id="availability")
+#     availability = availability.get_text(strip=True) if availability else "N/A"
 
-    # Extract product description
-    desc_section = soup.find("div", id="feature-bullets")
-    description = [bullet.get_text(strip=True) for bullet in desc_section.find_all("span", class_="a-list-item")] if desc_section else ["N/A"]
+#     # Extract product description
+#     desc_section = soup.find("div", id="feature-bullets")
+#     description = [bullet.get_text(strip=True) for bullet in desc_section.find_all("span", class_="a-list-item")] if desc_section else ["N/A"]
 
-    # Click on "See all reviews" link
-    try:
-        see_all_reviews_link = driver.find_element(By.PARTIAL_LINK_TEXT, "See all reviews")
-        see_all_reviews_link.click()
-        time.sleep(3)  # Allow reviews page to load
-    except Exception as e:
-        print("No 'See all reviews' link found. Scraping reviews from the main page.")
+#     # Click on "See all reviews" link
+#     try:
+#         see_all_reviews_link = driver.find_element(By.PARTIAL_LINK_TEXT, "See all reviews")
+#         see_all_reviews_link.click()
+#         time.sleep(3)  # Allow reviews page to load
+#     except Exception as e:
+#         print("No 'See all reviews' link found. Scraping reviews from the main page.")
 
-    reviews = []
-    max_pages = 5  # Set the number of pages to scrape
-    current_page = 1
+#     reviews = []
+#     max_pages = 5  # Set the number of pages to scrape
+#     current_page = 1
 
-    while current_page <= max_pages:
-        print(f"Scraping page {current_page}...")
+#     while current_page <= max_pages:
+#         print(f"Scraping page {current_page}...")
 
-        # Scroll down to load reviews
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(3)  # Wait for reviews to load
+#         # Scroll down to load reviews
+#         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+#         time.sleep(3)  # Wait for reviews to load
 
-        # Extract reviews
-        review_elements = driver.find_elements(By.CSS_SELECTOR, "span[data-hook='review-body']")
-        image_elements = driver.find_elements(By.CSS_SELECTOR, "div.review-image-tile-section img")
+#         # Extract reviews
+#         review_elements = driver.find_elements(By.CSS_SELECTOR, "span[data-hook='review-body']")
+#         image_elements = driver.find_elements(By.CSS_SELECTOR, "div.review-image-tile-section img")
 
-        for i in range(len(review_elements)):
-            review_text = review_elements[i].text.strip()
-            review_image = image_elements[i].get_attribute("src") if i < len(image_elements) else "No Image"
+#         for i in range(len(review_elements)):
+#             review_text = review_elements[i].text.strip()
+#             review_image = image_elements[i].get_attribute("src") if i < len(image_elements) else "No Image"
 
-            reviews.append({
-                "Review": review_text,
-                "Review Image": review_image
-            })
+#             reviews.append({
+#                 "Review": review_text,
+#                 "Review Image": review_image
+#             })
 
-        # Try to find and click the "Next page" link
-        try:
-            next_page_link = driver.find_element(By.PARTIAL_LINK_TEXT, "Next")
-            next_page_link.click()
-            time.sleep(3)  # Allow next page to load
-            current_page += 1
-        except Exception as e:
-            print("No more review pages found.")
-            break
+#         # Try to find and click the "Next page" link
+#         try:
+#             next_page_link = driver.find_element(By.PARTIAL_LINK_TEXT, "Next")
+#             next_page_link.click()
+#             time.sleep(3)  # Allow next page to load
+#             current_page += 1
+#         except Exception as e:
+#             print("No more review pages found.")
+#             break
 
-    # Close the browser
-    driver.quit()
+#     # Close the browser
+#     driver.quit()
 
-    # Return product details as a dictionary
-    return {
-        "Title": title,
-        "Price": price,
-        "Rating": rating,
-        "Availability": availability,
-        "Description": description,
-        "Reviews": reviews
-    }
+#     # Return product details as a dictionary
+#     return {
+#         "Title": title,
+#         "Price": price,
+#         "Rating": rating,
+#         "Availability": availability,
+#         "Description": description,
+#         "Reviews": reviews
+#     }
 
 # API endpoint
 @app.route("/analyze-product", methods=["POST"])
@@ -353,27 +354,38 @@ def translate():
     target_language = data.get("target_language")  # Change this to your desired language code
 
     if not text:
-        return jsonify({"error": "text is required"}), 400
+        return jsonify({"error": "Text is required"}), 400
 
     # Translate the text
     translated_text = translate_text(text, target_language)
     print("translated_text", translated_text)
     return jsonify({"response": translated_text})
 
-# API endpoint
-@app.route("/text-to-speech", methods=["POST"])
-def textToSpeech():
-    data = request.json
-    text = data.get("text")
-    target_language = data.get("target_language")  # Change this to your desired language code
-
-    if not text:
-        return jsonify({"error": "text is required"}), 400
-
-    # Translate the text
-    speech = text_to_speech(text, target_language)
-    print("speech", speech)
-    return jsonify({"response": speech})
+# Endpoint to convert text to speech
+@app.route('/text-to-speech', methods=['POST'])
+def convert_text_to_speech():
+    try:
+        # Get the JSON data from the POST request
+        data = request.get_json()
+        text = data.get('text')
+        language = data.get('target_language', 'en')  # Default to 'en' if not provided
+        
+        if not text:
+            return jsonify({"error": "Text is required"}), 400
+        
+        # Convert the text to speech using gTTS
+        tts = gTTS(text=text, lang=language, slow=False)
+        
+        # Save the audio to a BytesIO object to avoid writing to disk
+        audio = BytesIO()
+        tts.save(audio)
+        audio.seek(0)  # Reset pointer to the start of the audio file
+        
+        # Return the audio as a response
+        return send_file(audio, mimetype="audio/mp3", as_attachment=True, download_name="output.mp3")
+    
+    except Exception as e:
+        return jsonify({"Text-to-speech error": str(e)}), 500
 
 # API endpoint
 @app.route("/videos", methods=["POST"])
@@ -391,21 +403,21 @@ def getVideos():
     })
 
 # API endpoint
-@app.route("/scrap-details", methods=["POST"])
-def get_product_details():
-    data = request.json
-    asin = data.get("asin")
+# @app.route("/scrap-details", methods=["POST"])
+# def get_product_details():
+#     data = request.json
+#     asin = data.get("asin")
 
-    if not asin:
-        return jsonify({"error": "ASIN is required"}), 400
+#     if not asin:
+#         return jsonify({"error": "ASIN is required"}), 400
 
-    # Scrape product details
-    product_details = scrape_amazon_product(asin)
+#     # Scrape product details
+#     product_details = scrape_amazon_product(asin)
 
-    # Return the product details as JSON
-    return jsonify({
-        "product_details": product_details
-    })
+#     # Return the product details as JSON
+#     return jsonify({
+#         "product_details": product_details
+#     })
 
 if __name__ == "__main__":
     app.run(debug=True)
