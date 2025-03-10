@@ -11,15 +11,6 @@ load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
 
-# Replace with your actual API keys
-# SCRAPINGBEE_API = "https://app.scrapingbee.com/api/v1/"
-# SCRAPINGBEE_API_KEY = os.getenv("SCRAPINGBEE_API_KEY")
-# BLOCK_ADS = True
-# PRODUCT_ASIN_AI_QUERY = "ASIN of first result"
-# PRODUCT_DETAILS_AI_QUERY = "Product information, Important information, Product description, About this item, Reviews"
-# PRODUCT_REVIEWS_AI_QUERY = "Reviews"
-# SHOW_DATA_PROMPT = "Give me this answer in tags which are short, crisp, easy to read quickly."
-
 PEOPLE_ENJOY_THIS_FOR = "people enjoy this for?"
 CONCERNS_EXIST_FOR = "concerns exist for?"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -36,15 +27,12 @@ header = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
     }
 
-# Get ASIN of the 1st Amazon Product
-def scrap_amazon_product_asin(query):
+# Get ASIN of the 1st Non-Ad Amazon Product
+def scrape_amazon_product_asin(query):
     # Construct the search URL
     url = f"https://www.amazon.in/s?k={query.replace(' ', '+')}"
-
-    # Headers to mimic a real browser
     headers = header
 
-    # Fetch the search results page
     response = requests.get(url, headers=headers)
     print("url to get ASIN", url)
     if response.status_code == 200:
@@ -69,13 +57,11 @@ def scrap_amazon_product_asin(query):
     return None
 
 # Get Amazon Product Details
-def scrap_amazon_product_details(asin):
-
-    #Define headers
-    headers = header
+def scrape_amazon_product_details(asin):
 
     # Load asin page
     url = f'https://www.amazon.in/dp/{asin}'
+    headers = header
     print(f'Loading {url}...')
     response = requests.get(url, headers=headers, verify=False)
     headers['Referer'] = url  # Save the URL as referrer for the next query
@@ -153,24 +139,6 @@ def scrap_amazon_product_details(asin):
         "reviews": reviews
     }
 
-# Get ASIN of the 1st Amazon Product
-# def search_amazon_product_ASIN(product_name):
-#     url = f'{SCRAPINGBEE_API}?url=https://www.amazon.in/s?k={product_name.replace(" ", "+")}&ai_query={PRODUCT_ASIN_AI_QUERY.replace(" ", "+")}&api_key={SCRAPINGBEE_API_KEY}&block_ads={BLOCK_ADS}'
-#     response = requests.get(url, verify=False)
-#     if response.status_code == 200:
-#         print("asin_url", url)
-#         return response.text
-#     return None
-
-# Get Product Details from Amazon
-# def search_amazon_product_details(ASIN, details_prompt):
-#     url = f'{SCRAPINGBEE_API}?url=https://www.amazon.in/dp/{ASIN}&ai_query={details_prompt.replace(" ", "+")}&api_key={SCRAPINGBEE_API_KEY}&block_ads={BLOCK_ADS}'
-#     response = requests.get(url, verify=False)
-#     if response.status_code == 200:
-#         print("product_url", url)
-#         return response.json()
-#     return None
-
 # Call GPT to get the response for the given prompt
 def call_gpt_api(product_name, product_details, prompt):
     gpt_prompt = f"{ROLE_AND_GUIDELINES_PROMPT}\nProduct: {product_name}\nProduct Details:\n{product_details}\nQuestion: {prompt}"
@@ -192,7 +160,7 @@ def call_gpt_api(product_name, product_details, prompt):
             "Content-Type": "application/json"
         }
         # print("gpt_prompt", gpt_prompt)
-        response = requests.post(url, headers=headers, json=data, verify=False)
+        response = requests.post(url, headers=headers, json=data)
 
         return response.json()["choices"][0]["message"]["content"]
     except Exception as e:
@@ -236,12 +204,12 @@ def analyze_product():
         return jsonify({"error": "product_name and prompt are required"}), 400
 
     # Step 1: Search for the product on Amazon
-    product_ASIN = scrap_amazon_product_asin(product_name)
+    product_ASIN = scrape_amazon_product_asin(product_name)
     if not product_ASIN:
         return jsonify({"error": "Product not found"}), 404
 
     # Step 2: Get reviews for the product
-    product_details = scrap_amazon_product_details(product_ASIN)
+    product_details = scrape_amazon_product_details(product_ASIN)
     if not product_details:
         return jsonify({"error": "No product details found"}), 404
 
@@ -260,7 +228,7 @@ def product_ASIN():
         return jsonify({"error": "product_name is required"}), 400
 
     # Step 1: Search for the product on Amazon
-    product_ASIN = scrap_amazon_product_asin(product_name)
+    product_ASIN = scrape_amazon_product_asin(product_name)
     if not product_ASIN:
         logging.error("error: product not found")
 
@@ -278,12 +246,12 @@ def product_details():
         return jsonify({"error": "product_name is required"}), 400
 
     # Step 1: Search for the product on Amazon
-    product_ASIN = scrap_amazon_product_asin(product_name)
+    product_ASIN = scrape_amazon_product_asin(product_name)
     if not product_ASIN:
         logging.error("error: product not found")
 
     # Step 2: Get Details for the product
-    product_details = scrap_amazon_product_details(product_ASIN)
+    product_details = scrape_amazon_product_details(product_ASIN)
     if not product_details:
         logging.error("error: No product details found")
     videos_links = search_youtube_videos(product_name)
@@ -303,12 +271,12 @@ def pdp_data():
         return jsonify({"error": "product_name is required"}), 400
 
     # Step 1: Search for the product on Amazon
-    product_ASIN = scrap_amazon_product_asin(product_name)
+    product_ASIN = scrape_amazon_product_asin(product_name)
     if not product_ASIN:
         logging.error("error: product not found")
 
     # Step 2: Get reviews for the product
-    product_details = scrap_amazon_product_details(product_ASIN)
+    product_details = scrape_amazon_product_details(product_ASIN)
     if not product_details:
         logging.error("error: No product details found")
 
@@ -354,7 +322,7 @@ def translate():
     translated_text = translate_text(text, target_language)
     return jsonify({"response": translated_text})
 
-# Endpoint to convert text to speech
+# API endpoint
 @app.route('/text-to-speech', methods=['POST'])
 def text_to_speech():
     # Get JSON data from the request
