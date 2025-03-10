@@ -76,7 +76,8 @@ def scrape_amazon_product_details(asin):
 
     # Extract product price
     price = tree.xpath('//span[@class="a-price-whole"]/text()')
-    price = price[0].strip() if price else "N/A"
+    price = f"₹{price[0].strip()}" if price else "N/A"
+
 
     # Extract product rating
     rating = tree.xpath('//span[@class=""]/text()')
