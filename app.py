@@ -11,12 +11,15 @@ load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
 
-PEOPLE_ENJOY_THIS_FOR = "people enjoy this for?"
-CONCERNS_EXIST_FOR = "concerns exist for?"
+PEOPLE_ENJOY_THIS_FOR = "people enjoy this for"
+CONCERNS_EXIST_FOR = "concerns exist for"
+ASK_ME_ANYTHING = "ask me anything"
+SUGGESTED_PROMPTS = "give only short 4-5 questions in array format only"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ROLE_AND_GUIDELINES_PROMPT = "Role:\r\n\r\nYou are an expert data analyst specializing in retail insights. Your task is to analyze customer reviews, product descriptions, and ratings from retail website data to provide concise, accurate, and engaging responses to customer inquiries.\r\n\r\nGuidelines:\r\n\r\n1. Short & Precise Responses: Keep answers concise, avoiding unnecessary details.\r\n2. Data-Driven Analysis: Base responses on product reviews, ratings, and descriptions while identifying key trends.\r\n3. Avoid Personal Data: Do not reveal personal details (names, emails, phone numbers) found in reviews.\r\n4. Sales Optimization: If a customer shows purchase intent, subtly highlight product benefits to encourage a sale.\r\n5. Clarification When Needed: If a question is unclear, ask relevant follow-up questions before responding.\r\n6. Filter Out Gibberish: Ignore or politely redirect irrelevant, nonsensical, or off-topic queries.\r\n7. Maintain Natural Flow: Keep responses conversational and engaging, aligned with the customer\'s tone.\r\n8. Trend Detection: Identify recurring themes in reviews (e.g., common praises or complaints) to enhance recommendations.\r\n9. Sentiment Awareness: If a product has mixed reviews, provide a balanced response highlighting both pros and cons.\r\n10. Comparative Insights: If applicable, suggest similar or better-rated alternatives to guide customers in decision-making.\r\n11. Urgency & Scarcity: Mention limited stock or popular trends when relevant to create urgency.\r\n12. Concise Bullet Points: Don\'t provide more than 10 bullet points.\r\n13. Don't use '*'. \r\n\r\nBelow is the data for product name and corresponding details(reviews) followed by the user question. Try to answer the user question-"
+ROLE_AND_GUIDELINES_PROMPT = "Role:\r\n\r\nYou are an expert data analyst specializing in retail insights. Your task is to analyze customer reviews, product descriptions, and ratings from retail website data to provide concise, accurate, and engaging responses to customer inquiries.\r\n\r\nGuidelines:\r\n\r\n1. Short & Precise Responses: Keep answers concise, avoiding unnecessary details.\r\n2. Data-Driven Analysis: Base responses on product reviews, ratings, and descriptions while identifying key trends.\r\n3. Avoid Personal Data: Do not reveal personal details (names, emails, phone numbers) found in reviews.\r\n4. Sales Optimization: If a customer shows purchase intent, subtly highlight product benefits to encourage a sale.\r\n5. Clarification When Needed: If a question is unclear, ask relevant follow-up questions before responding.\r\n6. Filter Out Gibberish: Ignore or politely redirect irrelevant, nonsensical, or off-topic queries.\r\n7. Maintain Natural Flow: Keep responses conversational and engaging, aligned with the customer\'s tone.\r\n8. Trend Detection: Identify recurring themes in reviews (e.g., common praises or complaints) to enhance recommendations.\r\n9. Sentiment Awareness: If a product has mixed reviews, provide a balanced response highlighting both pros and cons.\r\n10. Comparative Insights: If applicable, suggest similar or better-rated alternatives to guide customers in decision-making.\r\n11. Urgency & Scarcity: Mention limited stock or popular trends when relevant to create urgency.\r\n12. Concise Bullet Points: Don\'t provide more than 10 bullet points.\r\n13. Don't give '*' in the response. \r\n\r\nBelow is the data for product name and corresponding details(reviews) followed by the user question. Try to answer the user question-"
 MAX_YOUTUBE_VIDEOS = 3
 YOUTUBE_SEARCH_PROMPT = "best review videos of"
+PDP_TAGS_PROMPT = "give tags in array of strings format only, not more lines"
 
 header = { 
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", 
@@ -160,7 +163,7 @@ def call_gpt_api(product_name, product_details, prompt):
             "Authorization": f"Bearer {OPENAI_API_KEY}",
             "Content-Type": "application/json"
         }
-        # print("gpt_prompt", gpt_prompt)
+        print("gpt_prompt", gpt_prompt)
         response = requests.post(url, headers=headers, json=data)
 
         return response.json()["choices"][0]["message"]["content"]
@@ -281,16 +284,17 @@ def pdp_data():
     if not product_details:
         logging.error("error: No product details found")
 
-    people_enjoy_this_for = call_gpt_api(product_name, product_details, PEOPLE_ENJOY_THIS_FOR)
-    concerns_exist_for = call_gpt_api(product_name, product_details, CONCERNS_EXIST_FOR)
+    people_enjoy_this_for = call_gpt_api(product_name, product_details, f'"{PEOPLE_ENJOY_THIS_FOR}" {PDP_TAGS_PROMPT}')
+    concerns_exist_for = call_gpt_api(product_name, product_details, f'"{CONCERNS_EXIST_FOR}" {PDP_TAGS_PROMPT}')
+    ask_me_anything = call_gpt_api(product_name, product_details, f'"{ASK_ME_ANYTHING}" {SUGGESTED_PROMPTS}')
 
     videos_links = search_youtube_videos(product_name)
 
     # Return all details as JSON
     return jsonify({
-        "product_details": product_details,
         "people_enjoy_this_for": people_enjoy_this_for,
         "concerns_exist_for": concerns_exist_for,
+        "ask_me_anything": ask_me_anything,
         "videos_links": videos_links
     })
 
